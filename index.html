@@ -65,9 +65,10 @@
     .lesson-side { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 
     .badge { padding: 5px 12px; border-radius: 20px; font-size: 0.9em; font-weight: 600; white-space: nowrap; }
-    .badge-ok { background: #d4edda; color: #155724; }
-    .badge-low { background: #fff3cd; color: #856404; }
-    .badge-full { background: #f8d7da; color: #721c24; }
+    .badge-green { background: #d4edda; color: #155724; }
+    .badge-yellow { background: #fff3cd; color: #856404; }
+    .badge-orange { background: #ffe0c2; color: #9a4a00; }
+    .badge-red { background: #f8d7da; color: #721c24; }
 
     .full-box {
       flex-basis: 100%;
@@ -270,7 +271,7 @@
 
   <script>
     // ⚙️ KONFIGURACE - VLOŽTE URL NASAZENÉHO APPS SCRIPTU (Kurzy2)
-    const API_URL = 'https://script.google.com/macros/s/AKfycbzpZ0JKg-_oE2p5jfoiEm_nq_oU1abxZKIDJ2TgEsYRcLHFQDcLbtp4m63hcLuh7sB3/exec';
+    const API_URL = 'SEM_VLOZTE_URL_APPS_SCRIPTU';
 
     let ORGANIZER_EMAIL = 'info+cj@c1z.cz';
     let lessons = [];
@@ -298,10 +299,19 @@
       return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
 
+    // Text a barva štítku s volnými místy
     function seatsText(n) {
-      if (n === 1) return '1 volné místo';
-      if (n >= 2 && n <= 4) return n + ' volná místa';
-      return n + ' volných míst';
+      if (n <= 0) return 'Nejsou volná místa';
+      if (n === 1) return 'Zbývá 1 místo';
+      if (n >= 2 && n <= 4) return 'Zbývají ' + n + ' místa';
+      return 'Zbývá ' + n + ' míst';
+    }
+
+    function seatsColor(n) {
+      if (n <= 0) return 'badge-red';      // 0
+      if (n <= 3) return 'badge-orange';   // 1-3
+      if (n <= 9) return 'badge-yellow';   // 4-9
+      return 'badge-green';                // 10 a více
     }
 
     function mailtoLink(lesson) {
@@ -352,8 +362,9 @@
     }
 
     function renderLesson(l) {
-      const badgeClass = l.plno ? 'badge-full' : (l.volnaMista > 5 ? 'badge-ok' : 'badge-low');
-      const badgeText = l.plno ? `Obsazeno (${l.kapacita}/${l.kapacita})` : `${seatsText(l.volnaMista)} z ${l.kapacita}`;
+      const volno = l.plno ? 0 : l.volnaMista;
+      const badgeClass = seatsColor(volno);
+      const badgeText = seatsText(volno);
       return `
         <div class="lesson ${l.plno ? 'full' : ''}">
           <div>
