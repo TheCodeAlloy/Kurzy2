@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Odhlášení z lekce</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; color: #333;
+    }
+    .container {
+      background: white; padding: 40px; border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3); text-align: center; max-width: 520px; width: 100%;
+    }
+    h1 { color: #667eea; margin-bottom: 20px; font-size: 1.7em; }
+    .info-section {
+      background: #f9f9f9; padding: 18px 20px; border-radius: 10px; margin: 20px 0;
+      border-left: 4px solid #667eea; text-align: left; line-height: 1.8;
+    }
+    .info-section strong { color: #667eea; }
+    .btn {
+      display: inline-block; padding: 15px 30px; border: none; border-radius: 10px;
+      font-size: 1.05em; font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.3s; margin: 6px 0;
+    }
+    .btn-danger { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); color: white; }
+    .btn-danger:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(235,51,73,0.4); }
+    .btn-secondary { background: #f0f0f0; color: #333; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-block { width: 100%; }
+    .btn-spinner {
+      display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading { color: #667eea; font-size: 1.2em; margin: 20px 0; }
+    .message { padding: 15px; border-radius: 10px; margin: 15px 0; line-height: 1.5; text-align: left; }
+    .message.success { background: #d4edda; color: #155724; border: 2px solid #c3e6cb; }
+    .message.error { background: #f8d7da; color: #721c24; border: 2px solid #f5c6cb; }
+    .message.warning { background: #fff3cd; color: #6b5200; border: 2px solid #ffe08a; }
+    .confirm-row { display: flex; gap: 10px; }
+    .confirm-row .btn { flex: 1; }
+    @media (max-width: 600px) { .container { padding: 24px; } h1 { font-size: 1.4em; } .confirm-row { flex-direction: column; gap: 0; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚪 Odhlášení z lekce</h1>
+    <div id="loading" class="loading">Načítám přihlášku...</div>
+    <div id="content"></div>
+  </div>
+
+  <script>
+    // ⚙️ KONFIGURACE - VLOŽTE URL NASAZENÉHO APPS SCRIPTU (Kurzy2)
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzpZ0JKg-_oE2p5jfoiEm_nq_oU1abxZKIDJ2TgEsYRcLHFQDcLbtp4m63hcLuh7sB3/exec';
+
+    const token = new URLSearchParams(window.location.search).get('t');
+    const content = document.getElementById('content');
+
+    async function callAPI(action, data = {}) {
+      try {
+        const params = new URLSearchParams();
+        params.append('action', action);
+        for (const key in data) params.append(key, data[key]);
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params.toString()
+        });
+        if (!response.ok) throw new Error('Network response was not ok');
+        return await response.json();
+      } catch (error) {
+        console.error('API Error:', error);
+        return { success: false, message: 'Chyba připojení k serveru. Zkontrolujte internet a zkuste to znovu.' };
+      }
+    }
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function infoBox(data) {
+      const l = data.lesson;
+      if (!l) return '';
+      return `
+        <div class="info-section">
+          <p><strong>Jméno:</strong> ${esc(data.participant.jmeno)} ${esc(data.participant.prijmeni)}</p>
+          <p><strong>Lekce:</strong> ${esc(l.nazev)}</p>
+          <p><strong>Datum:</strong> ${esc(l.den ? l.den + ' ' : '')}${esc(l.datum)}</p>
+          <p><strong>Čas:</strong> ${esc(l.hodiny)}</p>
+          <p><strong>Místo:</strong> ${esc(l.misto)}</p>
+        </div>`;
+    }
+
+    const backLink = '<a class="btn btn-secondary btn-block" href="./">Zpět na seznam lekcí</a>';
+
+    function showFinal(html) {
+      document.getElementById('loading').style.display = 'none';
+      content.innerHTML = html;
+    }
+
+    async function init() {
+      if (!token) {
+        showFinal(`<div class="message error">Neplatný odkaz - chybí identifikace přihlášky.</div>${backLink}`);
+        return;
+      }
+
+      const data = await callAPI('getRegistrationByToken', { token });
+      if (!data.success) {
+        showFinal(`<div class="message error">${esc(data.message)}</div>${backLink}`);
+        return;
+      }
+
+      if (data.status === 'cancelled') {
+        showFinal(`<div class="message warning">Z této lekce jste již odhlášen/a.</div>${infoBox(data)}${backLink}`);
+        return;
+      }
+      if (data.status === 'attended') {
+        showFinal(`<div class="message warning">Této lekce jste se již zúčastnil/a, odhlášení není možné.</div>${infoBox(data)}${backLink}`);
+        return;
+      }
+      if (data.status === 'expired') {
+        showFinal(`<div class="message warning">Tato přihláška nebyla potvrzena a už neplatí - není potřeba nic dělat.</div>${infoBox(data)}${backLink}`);
+        return;
+      }
+      if (!data.canCancel) {
+        showFinal(`<div class="message warning">Tato lekce už proběhla, odhlášení není možné.</div>${infoBox(data)}${backLink}`);
+        return;
+      }
+
+      showFinal(`
+        <p style="color:#555;line-height:1.6;">Opravdu se chcete odhlásit z této lekce? Vaše místo se uvolní pro dalšího zájemce.</p>
+        ${infoBox(data)}
+        <div class="confirm-row">
+          <a class="btn btn-secondary" href="./">Ne, ponechat</a>
+          <button id="cancelBtn" class="btn btn-danger">Ano, odhlásit se</button>
+        </div>
+        <div id="result"></div>`);
+      document.getElementById('cancelBtn').addEventListener('click', doCancel);
+    }
+
+    async function doCancel() {
+      const btn = document.getElementById('cancelBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="btn-spinner"></span>Odhlašuji...';
+
+      const res = await callAPI('cancelRegistration', { token });
+
+      if (res.success) {
+        content.innerHTML = `<div class="message success">✅ ${esc(res.message)}</div>${backLink}`;
+      } else {
+        btn.disabled = false;
+        btn.innerHTML = 'Ano, odhlásit se';
+        document.getElementById('result').innerHTML = `<div class="message error">${esc(res.message)}</div>`;
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

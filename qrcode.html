@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light only">
+  <title>Váš QR kód pro check-in</title>
+  <!-- QR Code generátor -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light only;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      text-align: center;
+      max-width: 500px;
+      width: 100%;
+    }
+
+    h1 {
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 1.8em;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 0.95em;
+    }
+
+    .info-section {
+      background: #f9f9f9;
+      padding: 20px;
+      border-radius: 10px;
+      margin: 20px 0;
+      border-left: 4px solid #667eea;
+    }
+
+    .info-section p {
+      margin: 10px 0;
+      color: #333;
+      text-align: left;
+    }
+
+    .info-section strong {
+      color: #667eea;
+    }
+
+    #qrCode {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 30px 0;
+      min-height: 300px;
+    }
+
+    #qrCode img, #qrCode canvas {
+      background: white !important;
+      filter: none !important;
+    }
+
+    .registration-id {
+      background: #e7f3ff;
+      padding: 15px;
+      border-radius: 10px;
+      margin: 20px 0;
+      border: 2px dashed #2196F3;
+    }
+
+    .registration-id strong {
+      color: #667eea;
+      font-size: 1.1em;
+    }
+
+    .tip {
+      background: #fff3cd;
+      padding: 15px;
+      border-radius: 10px;
+      border-left: 4px solid #ffc107;
+      margin: 20px 0;
+      text-align: left;
+    }
+
+    .tip p {
+      margin: 5px 0;
+      color: #666;
+      font-size: 0.9em;
+    }
+
+    .loading {
+      color: #667eea;
+      font-size: 1.2em;
+      margin: 20px 0;
+    }
+
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 20px;
+      border-radius: 10px;
+      border: 2px solid #f5c6cb;
+      margin: 20px 0;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 20px;
+      }
+
+      h1 {
+        font-size: 1.5em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎫 Váš QR kód pro check-in</h1>
+    <p class="subtitle">Ukažte tento QR kód při příchodu na kurz</p>
+
+    <div id="loading" class="loading">
+      Načítám QR kód...
+    </div>
+
+    <div id="content" style="display: none;">
+      <!-- QR kód se zobrazí zde -->
+      <div id="qrCode"></div>
+
+      <!-- Info o přihlášce -->
+      <div class="info-section" id="infoSection"></div>
+
+      <!-- ID přihlášky -->
+      <div class="registration-id">
+        <p><strong>ID přihlášky:</strong></p>
+        <p id="registrationIdDisplay" style="font-family: monospace; font-size: 1.1em; color: #333; margin-top: 5px;"></p>
+      </div>
+
+      <!-- Tip -->
+      <div class="tip">
+        <p><strong>💡 Tip:</strong></p>
+        <p>Uložte si tento odkaz do záložek pro rychlý přístup před lekcí.</p>
+        <p>Na každou další lekci je potřeba se přihlásit zvlášť – každá lekce má svůj QR kód.</p>
+      </div>
+    </div>
+
+    <div id="error" class="error" style="display: none;">
+      <h3>❌ Chyba</h3>
+      <p id="errorMessage"></p>
+    </div>
+  </div>
+
+  <script>
+    // ⚙️ KONFIGURACE - VLOŽTE URL NASAZENÉHO APPS SCRIPTU (Kurzy2)
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzpZ0JKg-_oE2p5jfoiEm_nq_oU1abxZKIDJ2TgEsYRcLHFQDcLbtp4m63hcLuh7sB3/exec';
+
+    // Získání ID přihlášky z URL parametru
+    const urlParams = new URLSearchParams(window.location.search);
+    const registrationId = urlParams.get('id');
+
+    if (!registrationId) {
+      showError('Neplatný odkaz. Chybí ID přihlášky v URL.');
+    } else {
+      loadQRCode();
+    }
+
+    async function loadQRCode() {
+      try {
+        const params = new URLSearchParams();
+        params.append('action', 'getRegistrationInfo');
+        params.append('registrationId', registrationId);
+        
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: params.toString()
+        });
+
+        if (!response.ok) {
+          throw new Error('Chyba při načítání dat');
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+          displayQRCode(data);
+        } else {
+          showError(data.message || 'Nepodařilo se načíst informace o přihlášce');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        showError('Chyba připojení k serveru: ' + error.message);
+      }
+    }
+
+    function displayQRCode(data) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+
+      new QRCode(document.getElementById("qrCode"), {
+        text: data.registrationId,
+        width: 300,
+        height: 300,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+      });
+
+      document.getElementById('registrationIdDisplay').textContent = data.registrationId;
+
+      document.getElementById('infoSection').innerHTML = `
+        <p><strong>Jméno:</strong> ${esc(data.participant.jmeno)} ${esc(data.participant.prijmeni)}</p>
+        <p><strong>Lekce:</strong> ${esc(data.course.nazev)}</p>
+        <p><strong>Datum:</strong> ${esc(data.course.den ? data.course.den + ' ' : '')}${esc(data.course.datum)}</p>
+        <p><strong>Čas:</strong> ${esc(data.course.hodiny)}</p>
+        <p><strong>Místo:</strong> ${esc(data.course.misto)}</p>
+      `;
+    }
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function showError(message) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('error').style.display = 'block';
+      document.getElementById('errorMessage').textContent = message;
+    }
+  </script>
+</body>
+</html>

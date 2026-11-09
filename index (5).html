@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EDU portál - přihlášení na lekce</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+    }
+
+    .container { max-width: 900px; margin: 0 auto; }
+
+    header, .card {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      margin-bottom: 20px;
+    }
+
+    header { text-align: center; }
+    header h1 { color: #667eea; font-size: 2em; margin-bottom: 10px; }
+    header p { color: #666; line-height: 1.6; }
+
+    .notice {
+      background: #e7f3ff;
+      border-left: 4px solid #2196F3;
+      padding: 12px 15px;
+      border-radius: 8px;
+      margin-top: 15px;
+      text-align: left;
+      color: #555;
+      font-size: 0.95em;
+      line-height: 1.5;
+    }
+
+    .course-title { color: #667eea; font-size: 1.4em; margin-bottom: 8px; }
+    .course-desc { color: #666; margin-bottom: 20px; line-height: 1.5; }
+
+    .lesson {
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 15px 20px;
+      margin-bottom: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .lesson:hover { border-color: #667eea; box-shadow: 0 5px 15px rgba(102,126,234,0.15); }
+    .lesson.full { background: #fafafa; }
+    .lesson.full:hover { border-color: #e0e0e0; box-shadow: none; }
+
+    .lesson-date { font-weight: 600; font-size: 1.1em; }
+    .lesson-meta { color: #666; margin-top: 4px; font-size: 0.95em; }
+    .lesson-side { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+    .badge { padding: 5px 12px; border-radius: 20px; font-size: 0.9em; font-weight: 600; white-space: nowrap; }
+    .badge-ok { background: #d4edda; color: #155724; }
+    .badge-low { background: #fff3cd; color: #856404; }
+    .badge-full { background: #f8d7da; color: #721c24; }
+
+    .full-box {
+      flex-basis: 100%;
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 10px 14px;
+      border-radius: 6px;
+      color: #6b5200;
+      font-size: 0.95em;
+    }
+    .full-box a { color: #667eea; font-weight: 600; word-break: break-all; }
+
+    .btn {
+      padding: 12px 26px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102,126,234,0.4); }
+    .btn-secondary { background: #f0f0f0; color: #333; }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+    .btn-block { width: 100%; }
+
+    .btn-spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3); border-top-color: white;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+      margin-right: 8px; vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading { text-align: center; padding: 20px; color: #667eea; font-size: 1.1em; }
+
+    .message { margin-top: 15px; padding: 12px 15px; border-radius: 8px; display: none; line-height: 1.5; }
+    .message.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; display: block; }
+    .message.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; display: block; }
+    .message.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; display: block; }
+
+    footer { text-align: center; color: white; padding: 10px; font-size: 0.95em; }
+    footer a { color: white; font-weight: 600; }
+
+    /* Modal s formulářem */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 9999;
+      overflow-y: auto;
+      padding: 20px 10px;
+    }
+    .modal-overlay.active { display: flex; align-items: flex-start; justify-content: center; }
+    .modal-box {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      max-width: 520px;
+      width: 100%;
+      margin: auto;
+      position: relative;
+      animation: slideUp 0.3s;
+    }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+    .modal-close {
+      position: absolute; top: 12px; right: 15px;
+      background: none; border: none; font-size: 1.8em; color: #999; cursor: pointer; line-height: 1;
+    }
+    .modal-box h3 { color: #667eea; margin-bottom: 15px; font-size: 1.4em; padding-right: 30px; }
+
+    .lesson-summary {
+      background: #f9f9f9;
+      border-left: 4px solid #667eea;
+      padding: 12px 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; }
+    .form-group input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 1em;
+    }
+    .form-group input:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.1); }
+
+    .consent {
+      display: flex; gap: 10px; align-items: flex-start;
+      background: #f9f9f9; padding: 12px; border-radius: 8px;
+      margin-bottom: 18px; font-size: 0.9em; color: #555; line-height: 1.5; cursor: pointer;
+    }
+    .consent input { width: 20px; height: 20px; margin-top: 2px; flex-shrink: 0; cursor: pointer; }
+
+    .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+
+    .done { text-align: center; }
+    .done-icon { font-size: 3.5em; margin-bottom: 10px; }
+    .done p { color: #555; line-height: 1.6; margin-bottom: 12px; }
+    .small { font-size: 0.9em; color: #888 !important; }
+
+    @media (max-width: 600px) {
+      body { padding: 10px; }
+      header, .card { padding: 20px; }
+      header h1 { font-size: 1.5em; }
+      .form-row { grid-template-columns: 1fr; gap: 0; }
+      .lesson-side { width: 100%; justify-content: space-between; }
+      .modal-box { padding: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <header>
+      <h1>📚 Přihlášení na lekce</h1>
+      <p>Vyberte lekci a vyplňte krátký formulář.</p>
+      <div class="notice">
+        ℹ️ <strong>Na každou lekci je potřeba se přihlásit zvlášť.</strong><br>
+        Po odeslání vám přijde e-mail s potvrzovacím odkazem. Přihláška platí až po jeho potvrzení,
+        potom dostanete QR kód pro vstup na lekci.
+      </div>
+    </header>
+
+    <div id="lessonsContainer">
+      <div class="card"><div class="loading">Načítám lekce...</div></div>
+    </div>
+
+    <footer>
+      Máte dotaz? Napište organizátorovi: <a id="footerMail" href="mailto:info+cj@c1z.cz">info+cj@c1z.cz</a>
+    </footer>
+  </div>
+
+  <!-- Formulář přihlášky -->
+  <div id="formModal" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <button class="modal-close" type="button" aria-label="Zavřít" onclick="closeForm()">×</button>
+
+      <div id="formView">
+        <h3>Přihláška na lekci</h3>
+        <div id="lessonSummary" class="lesson-summary"></div>
+
+        <form id="regForm" novalidate>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="jmeno">Jméno *</label>
+              <input type="text" id="jmeno" autocomplete="given-name" maxlength="60" required>
+            </div>
+            <div class="form-group">
+              <label for="prijmeni">Příjmení *</label>
+              <input type="text" id="prijmeni" autocomplete="family-name" maxlength="60" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="email">E-mail *</label>
+            <input type="email" id="email" autocomplete="email" maxlength="120" placeholder="vas@email.cz" required>
+          </div>
+          <div class="form-group">
+            <label for="telefon">Telefon *</label>
+            <input type="tel" id="telefon" autocomplete="tel" maxlength="30" placeholder="+420 777 123 456" required>
+          </div>
+
+          <!-- Skryté pole proti robotům - nevyplňovat -->
+          <div class="hp" aria-hidden="true">
+            <label for="website">Web</label>
+            <input type="text" id="website" tabindex="-1" autocomplete="off">
+          </div>
+
+          <label class="consent" for="gdpr">
+            <input type="checkbox" id="gdpr">
+            <span id="gdprText">
+              Souhlasím se zpracováním svých osobních údajů (jméno, příjmení, e-mail a telefon) za účelem
+              přihlášení na lekci, zaslání potvrzení a organizace kurzu. Údaje nebudou použity k jiným účelům
+              ani předány třetím osobám. Souhlas mohu kdykoli odvolat e-mailem na adrese
+              <strong>info+cj@c1z.cz</strong>.
+            </span>
+          </label>
+
+          <button type="submit" id="submitBtn" class="btn btn-primary btn-block" disabled>Odeslat přihlášku</button>
+          <div id="formMessage" class="message"></div>
+        </form>
+      </div>
+
+      <div id="doneView" class="done" style="display:none;">
+        <div class="done-icon">📧</div>
+        <h3 style="padding-right:0;">Zkontrolujte svůj e-mail</h3>
+        <p id="doneText"></p>
+        <p class="small">E-mail nepřišel? Podívejte se i do složky Spam / Hromadné.</p>
+        <button type="button" class="btn btn-primary" onclick="closeForm()">Zavřít</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ⚙️ KONFIGURACE - VLOŽTE URL NASAZENÉHO APPS SCRIPTU (Kurzy2)
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzpZ0JKg-_oE2p5jfoiEm_nq_oU1abxZKIDJ2TgEsYRcLHFQDcLbtp4m63hcLuh7sB3/exec';
+
+    let ORGANIZER_EMAIL = 'info+cj@c1z.cz';
+    let lessons = [];
+    let selectedLesson = null;
+
+    async function callAPI(action, data = {}) {
+      try {
+        const params = new URLSearchParams();
+        params.append('action', action);
+        for (const key in data) params.append(key, data[key]);
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params.toString()
+        });
+        if (!response.ok) throw new Error('Network response was not ok');
+        return await response.json();
+      } catch (error) {
+        console.error('API Error:', error);
+        return { success: false, message: 'Chyba připojení k serveru. Zkontrolujte internet a zkuste to znovu.' };
+      }
+    }
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function seatsText(n) {
+      if (n === 1) return '1 volné místo';
+      if (n >= 2 && n <= 4) return n + ' volná místa';
+      return n + ' volných míst';
+    }
+
+    function mailtoLink(lesson) {
+      const subject = encodeURIComponent('Obsazená lekce: ' + lesson.nazev + ' ' + lesson.datum);
+      return `<a href="mailto:${esc(ORGANIZER_EMAIL)}?subject=${subject}">${esc(ORGANIZER_EMAIL)}</a>`;
+    }
+
+    // ---------- Seznam lekcí ----------
+    async function loadLessons() {
+      const container = document.getElementById('lessonsContainer');
+      const res = await callAPI('getLessons');
+
+      if (!res.success) {
+        container.innerHTML = `<div class="card"><div class="message error">${esc(res.message || 'Lekce se nepodařilo načíst.')}</div>
+          <button class="btn btn-secondary" style="margin-top:15px;" onclick="loadLessons()">Zkusit znovu</button></div>`;
+        return;
+      }
+
+      if (res.organizerEmail) {
+        ORGANIZER_EMAIL = res.organizerEmail;
+        const f = document.getElementById('footerMail');
+        f.textContent = ORGANIZER_EMAIL;
+        f.href = 'mailto:' + ORGANIZER_EMAIL;
+      }
+
+      lessons = res.lessons || [];
+      if (lessons.length === 0) {
+        container.innerHTML = '<div class="card"><p style="text-align:center;color:#666;">Momentálně nejsou vypsané žádné lekce.</p></div>';
+        return;
+      }
+
+      // Seskupení lekcí podle kurzu (název + popis), pořadí podle data
+      const groups = [];
+      const map = {};
+      lessons.forEach(l => {
+        const key = l.nazev + '||' + l.popis;
+        if (!map[key]) { map[key] = { nazev: l.nazev, popis: l.popis, items: [] }; groups.push(map[key]); }
+        map[key].items.push(l);
+      });
+
+      container.innerHTML = groups.map(g => `
+        <div class="card">
+          <h2 class="course-title">${esc(g.nazev)}</h2>
+          ${g.popis ? `<p class="course-desc">${esc(g.popis)}</p>` : ''}
+          ${g.items.map(renderLesson).join('')}
+        </div>
+      `).join('');
+    }
+
+    function renderLesson(l) {
+      const badgeClass = l.plno ? 'badge-full' : (l.volnaMista > 5 ? 'badge-ok' : 'badge-low');
+      const badgeText = l.plno ? `Obsazeno (${l.kapacita}/${l.kapacita})` : `${seatsText(l.volnaMista)} z ${l.kapacita}`;
+      return `
+        <div class="lesson ${l.plno ? 'full' : ''}">
+          <div>
+            <div class="lesson-date">📅 ${esc(l.den ? l.den + ' ' : '')}${esc(l.datum)}</div>
+            <div class="lesson-meta">🕐 ${esc(l.hodiny)} &nbsp;·&nbsp; 📍 ${esc(l.misto)}</div>
+          </div>
+          <div class="lesson-side">
+            <span class="badge ${badgeClass}">${badgeText}</span>
+            ${l.plno ? '' : `<button class="btn btn-primary" data-lesson="${esc(l.id)}">Přihlásit se</button>`}
+          </div>
+          ${l.plno ? `<div class="full-box">⚠️ Lekce je již obsazená. Můžete kontaktovat organizátora: ${mailtoLink(l)}</div>` : ''}
+        </div>
+      `;
+    }
+
+    document.getElementById('lessonsContainer').addEventListener('click', e => {
+      const btn = e.target.closest('button[data-lesson]');
+      if (btn) openForm(btn.getAttribute('data-lesson'));
+    });
+
+    // ---------- Formulář ----------
+    const fields = ['jmeno', 'prijmeni', 'email', 'telefon'];
+
+    function openForm(lessonId) {
+      selectedLesson = lessons.find(l => l.id === lessonId);
+      if (!selectedLesson) return;
+
+      document.getElementById('lessonSummary').innerHTML = `
+        <strong>${esc(selectedLesson.nazev)}</strong><br>
+        📅 ${esc(selectedLesson.den ? selectedLesson.den + ' ' : '')}${esc(selectedLesson.datum)}<br>
+        🕐 ${esc(selectedLesson.hodiny)}<br>
+        📍 ${esc(selectedLesson.misto)}
+      `;
+
+      // Předvyplnění údajů z předchozí přihlášky (jen v tomto okně prohlížeče)
+      try {
+        const saved = JSON.parse(sessionStorage.getItem('kurzy2_udaje') || '{}');
+        fields.forEach(f => { if (saved[f] && !document.getElementById(f).value) document.getElementById(f).value = saved[f]; });
+      } catch (e) {}
+
+      document.getElementById('gdpr').checked = false;
+      document.getElementById('submitBtn').disabled = true;
+      document.getElementById('formMessage').className = 'message';
+      document.getElementById('formView').style.display = 'block';
+      document.getElementById('doneView').style.display = 'none';
+      document.getElementById('formModal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+      setTimeout(() => document.getElementById(document.getElementById('jmeno').value ? 'gdpr' : 'jmeno').focus(), 100);
+    }
+
+    function closeForm() {
+      document.getElementById('formModal').classList.remove('active');
+      document.body.style.overflow = '';
+      selectedLesson = null;
+    }
+
+    document.getElementById('formModal').addEventListener('click', e => { if (e.target.id === 'formModal') closeForm(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeForm(); });
+
+    // Bez souhlasu GDPR nelze odeslat
+    document.getElementById('gdpr').addEventListener('change', e => {
+      document.getElementById('submitBtn').disabled = !e.target.checked;
+    });
+
+    function formError(msg) {
+      const el = document.getElementById('formMessage');
+      el.textContent = msg;
+      el.className = 'message error';
+    }
+
+    document.getElementById('regForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      if (!selectedLesson) return;
+
+      const v = {};
+      fields.forEach(f => v[f] = document.getElementById(f).value.trim());
+
+      if (!v.jmeno || !v.prijmeni) return formError('Vyplňte prosím jméno a příjmení.');
+      if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v.email)) return formError('Zadejte prosím platnou e-mailovou adresu.');
+      if (!/^[0-9+()\-\/ ]+$/.test(v.telefon) || v.telefon.replace(/\D/g, '').length < 9) {
+        return formError('Zadejte prosím platné telefonní číslo (alespoň 9 číslic).');
+      }
+      if (!document.getElementById('gdpr').checked) return formError('Pro odeslání je nutný souhlas se zpracováním osobních údajů.');
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="btn-spinner"></span>Odesílám...';
+      document.getElementById('formMessage').className = 'message';
+
+      const res = await callAPI('registerForLesson', {
+        lessonId: selectedLesson.id,
+        jmeno: v.jmeno,
+        prijmeni: v.prijmeni,
+        email: v.email,
+        telefon: v.telefon,
+        gdpr: 'true',
+        website: document.getElementById('website').value
+      });
+
+      btn.disabled = !document.getElementById('gdpr').checked;
+      btn.innerHTML = 'Odeslat přihlášku';
+
+      if (res.success) {
+        try { sessionStorage.setItem('kurzy2_udaje', JSON.stringify(v)); } catch (e) {}
+        document.getElementById('doneText').textContent = res.message;
+        document.getElementById('formView').style.display = 'none';
+        document.getElementById('doneView').style.display = 'block';
+      } else {
+        formError(res.message || 'Přihlášku se nepodařilo odeslat.');
+        if (res.full) loadLessons();
+      }
+    });
+
+    loadLessons();
+  </script>
+</body>
+</html>
